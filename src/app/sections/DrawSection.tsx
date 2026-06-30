@@ -1,13 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { TCard, DrawnCard } from "../types";
+import { DrawnCard } from "../types";
 import { CARDS } from "../data";
 import { DECK_COUNT } from "../constants";
-import { genReading } from "../utils";
 import { MiniCard } from "../components/ui/MiniCard";
 import { Panel } from "../components/ui/Panel";
 import { PixelBtn } from "../components/ui/PixelBtn";
-import { Eye as IconEye } from "pixelarticons/react";
+import { Eye as _IconEye } from "pixelarticons/react";
+import { saveReading, streamAgentReading } from "../api/client";
+
+const IconEye = _IconEye as unknown as React.ComponentType<React.SVGAttributes<SVGSVGElement>>;
+
+// 有趣的等待提示
+const LOADING_MESSAGES = [
+  "正在观察星星眨眼...",
+  "偷听小猫的悄悄话...",
+  "正在问癞疙宝...",
+  "正在问同行....",
+  "正在偷偷发会呆...",
+  "月亮正在塞小纸条...",
+  "正在摇骰子...",
+  "正在擦水晶球...",
+];
 
 export function DrawSection() {
   const [q, setQ] = useState("");
@@ -15,16 +29,39 @@ export function DrawSection() {
   const [phase, setPhase] = useState<"idle" | "shuffling" | "revealed">("idle");
   const [animPhase, setAnimPhase] = useState<"spread" | "gather" | "shuffle" | "draw" | "glow" | null>(null);
   const [drawn, setDrawn] = useState<DrawnCard[]>([]);
-  const [drawnIdx, setDrawnIdx] = useState(-1); // how many cards drawn so far
+  const [drawnIdx, setDrawnIdx] = useState(-1);
   const [readings, setReadings] = useState<string[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; x: number; y: number; col: string }[]>([]);
 
   // Modal reveal state
   const [revealIdx, setRevealIdx] = useState(-1);
-  const [revealText, setRevealText] = useState("");
   const [revealDone, setRevealDone] = useState(false);
 
-  const POSITIONS = ["过去", "现在", "未来"];
+  // Agent streaming state
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const streamTextRef = useRef("");
+
+  // Combined reading (for 3-card spread)
+  const [combinedReading, setCombinedReading] = useState("");
+  const [combinedLoading, setCombinedLoading] = useState(false);
+  const [combinedDone, setCombinedDone] = useState(false);
+
+  // Loading message rotation (random)
+  useEffect(() => {
+    if (!isLoading && !combinedLoading) return;
+    const pick = () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+    setLoadingMsg(pick());
+    const t = setInterval(() => setLoadingMsg(pick()), 2500);
+    return () => clearInterval(t);
+  }, [isLoading, combinedLoading]);
+
+  // When revealIdx changes, fetch agent reading for that card
+  useEffect(() => {
+    if (revealIdx < 0 || revealIdx >= drawn.length) return;
+    fetchCardReading(q, drawn[revealIdx], revealIdx);
+  }, [revealIdx]);
 
   const draw = () => {
     if (!q.trim() || phase !== "idle") return;
@@ -34,8 +71,13 @@ export function DrawSection() {
     setDrawnIdx(-1);
     setReadings([]);
     setRevealIdx(-1);
-    setRevealText("");
     setRevealDone(false);
+    setIsLoading(false);
+    setStreamingText("");
+    streamTextRef.current = "";
+    setCombinedReading("");
+    setCombinedDone(false);
+    setCombinedLoading(false);
 
     // Pre-pick the cards
     const picked: DrawnCard[] = [];
@@ -46,7 +88,7 @@ export function DrawSection() {
       picked.push({ ...card, reversed: Math.random() > 0.72 });
     }
     setDrawn(picked);
-    setReadings(picked.map(c => genReading(c, c.reversed)));
+    setReadings(picked.map(() => ""));
 
     const palette = ["#fbbf24", "#c084fc", "#60a5fa", "#f43f5e", "#34d399", "#a3e635"];
     setSparkles(Array.from({ length: 18 }, (_, i) => ({
@@ -56,52 +98,98 @@ export function DrawSection() {
     })));
     setTimeout(() => setSparkles([]), 5000);
 
-    // 5-phase animation: spread → gather → shuffle → draw → glow
+    // Animation phases
     setTimeout(() => setAnimPhase("gather"), 1000);
     setTimeout(() => setAnimPhase("shuffle"), 1800);
-    // Draw cards one by one
-    setTimeout(() => {
-      setAnimPhase("draw");
-      setDrawnIdx(0);
-    }, 3200);
+    setTimeout(() => { setAnimPhase("draw"); setDrawnIdx(0); }, 3200);
     if (drawCount >= 2) setTimeout(() => setDrawnIdx(1), 3900);
     if (drawCount >= 3) setTimeout(() => setDrawnIdx(2), 4600);
-    // Glow phase
     setTimeout(() => setAnimPhase("glow"), 3200 + drawCount * 700);
-    // Open modal (3-card) or go directly to result (1-card)
+
+    // Open modal/reveal
     setTimeout(() => {
       setAnimPhase(null);
       if (drawCount === 3) {
-        setRevealIdx(0);
+        setRevealIdx(0); // This triggers useEffect to fetch reading
       } else {
         setPhase("revealed");
+        // For single card, fetch reading directly
+        fetchCardReading(q, picked[0], 0);
       }
     }, 4200 + drawCount * 700);
   };
 
-  // Typewriter effect in modal — sequential per card
-  useEffect(() => {
-    if (revealIdx < 0 || revealIdx >= drawn.length) return;
-    const full = readings[revealIdx];
-    if (!full) return;
-    let i = 0;
-    setRevealText("");
+  // Fetch agent reading for a single card
+  const fetchCardReading = async (question: string, card: DrawnCard, cardIdx: number) => {
+    setIsLoading(true);
+    setStreamingText("");
+    streamTextRef.current = "";
     setRevealDone(false);
-    const t = setInterval(() => {
-      if (i < full.length) {
-        setRevealText(full.slice(0, ++i));
-      } else {
-        clearInterval(t);
+
+    const payload = {
+      card_id: card.id,
+      card_name: card.name,
+      card_en: card.en,
+      reversed: card.reversed,
+      reading_text: "",
+    };
+
+    await streamAgentReading(
+      question,
+      [payload],
+      (chunk) => {
+        streamTextRef.current += chunk;
+        setStreamingText(streamTextRef.current);
+        setIsLoading(false);
+      },
+      () => {
+        const finalText = streamTextRef.current;
+        setReadings(prev => { const n = [...prev]; n[cardIdx] = finalText; return n; });
         setRevealDone(true);
-      }
-    }, 28);
-    return () => clearInterval(t);
-  }, [revealIdx, readings, drawn.length]);
+        setIsLoading(false);
+
+        // If this is the last card in 3-card spread, fetch combined reading
+        if (drawCount === 3 && cardIdx === drawn.length - 1) {
+          fetchCombinedReading(question, drawn);
+        }
+      },
+      (err) => {
+        console.error("Agent error:", err);
+        setIsLoading(false);
+        setRevealDone(true);
+      },
+      drawCount,
+      cardIdx,
+    );
+  };
+
+  // Fetch combined reading for 3-card spread
+  const fetchCombinedReading = async (question: string, cards: DrawnCard[]) => {
+    setCombinedLoading(true);
+    setCombinedDone(false);
+
+    const payloads = cards.map((c, i) => ({
+      card_id: c.id, card_name: c.name, card_en: c.en,
+      reversed: c.reversed, reading_text: readings[i] || "",
+    }));
+
+    let fullText = "";
+    await streamAgentReading(
+      question,
+      payloads,
+      (chunk) => { fullText += chunk; setCombinedReading(fullText); setCombinedLoading(false); },
+      () => { setCombinedDone(true); setCombinedLoading(false); },
+      (err) => { console.error("Combined error:", err); setCombinedLoading(false); setCombinedDone(true); },
+      3,     // totalCards
+      2,     // currentIndex (last card)
+      true,  // isCombined
+    );
+  };
 
   // Advance to next card or close modal
   const nextReveal = () => {
     if (revealIdx < drawn.length - 1) {
-      setRevealIdx(revealIdx + 1);
+      setRevealIdx(revealIdx + 1); // This triggers useEffect to fetch next card's reading
     } else {
       setRevealIdx(-1);
       setPhase("revealed");
@@ -110,7 +198,9 @@ export function DrawSection() {
 
   const reset = () => {
     setPhase("idle"); setAnimPhase(null); setDrawn([]); setQ("");
-    setReadings([]); setRevealIdx(-1); setRevealText(""); setRevealDone(false);
+    setReadings([]); setRevealIdx(-1); setRevealDone(false);
+    setIsLoading(false); setStreamingText(""); streamTextRef.current = "";
+    setCombinedReading(""); setCombinedDone(false); setCombinedLoading(false);
   };
 
   const deckCards = Array.from({ length: DECK_COUNT }, (_, i) => {
@@ -127,26 +217,25 @@ export function DrawSection() {
         ))}
       </div>
 
-      {/* ── Full-screen reveal modal ── */}
+      {/* ── Full-screen reveal modal (3-card) ── */}
       {revealIdx >= 0 && revealIdx < drawn.length && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 200,
           background: "rgba(5,5,15,0.96)",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          display: "flex", flexDirection: "column", alignItems: "center",
           padding: 24, gap: 16,
+          overflowY: "auto",
           animation: "fadeUp 0.4s ease forwards",
         }}>
-          {/* Position label */}
+          {/* Card number label */}
           {drawCount === 3 && (
             <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.15em" }}>
-              ✦ {POSITIONS[revealIdx]} ✦
+              ✦ 第 {revealIdx + 1} 张 ✦
             </div>
           )}
 
-          {/* Card image */}
           <MiniCard card={drawn[revealIdx]} reversed={drawn[revealIdx].reversed} size="lg" />
 
-          {/* Card info */}
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "16px", color: drawn[revealIdx].col, fontFamily: "'VT323', monospace" }}>{drawn[revealIdx].name}</div>
             <div style={{ fontSize: "8px", color: "#7766bb", marginTop: 4 }}>{drawn[revealIdx].en}</div>
@@ -155,17 +244,27 @@ export function DrawSection() {
             )}
           </div>
 
-          {/* Reading with typewriter */}
+          {/* Reading area with scroll */}
           <div style={{
             maxWidth: 360, width: "100%", padding: 16,
             border: `2px solid ${drawn[revealIdx].col}33`,
             background: "#0a0a1a",
             fontSize: "16px", fontFamily: "'VT323', monospace",
             color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line",
-            minHeight: 100,
+            minHeight: 120, maxHeight: "40vh", overflowY: "auto",
           }}>
-            {revealText}
-            {!revealDone && <span style={{ animation: "blink 0.55s steps(1) infinite" }}>▌</span>}
+            {isLoading ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: "14px", color: "#c084fc", animation: "loadingPulse 2s ease-in-out infinite" }}>
+                  ✦ {loadingMsg} ✦
+                </div>
+              </div>
+            ) : (
+              <>
+                {streamingText || readings[revealIdx] || ""}
+                {!revealDone && <span style={{ animation: "blink 0.55s steps(1) infinite" }}>▌</span>}
+              </>
+            )}
           </div>
 
           {/* Progress dots */}
@@ -180,7 +279,7 @@ export function DrawSection() {
             ))}
           </div>
 
-          {/* Next button — only after typing finishes */}
+          {/* Next button */}
           {revealDone && (
             <button onClick={nextReveal} style={{
               background: "#7c3aed", color: "#fbbf24",
@@ -256,87 +355,45 @@ export function DrawSection() {
               const shufRot = ((idx * 53 + 3) % 30) - 15;
               const delay = idx * 0.05;
 
-              // Check if this card is one of the drawn cards
-              const drawIdx = DECK_COUNT - 1 - idx; // 0 = top, 1 = second, 2 = third
+              const drawIdx = DECK_COUNT - 1 - idx;
               const isDrawn = animPhase === "draw" && drawnIdx >= drawIdx;
               const isGlowing = animPhase === "glow" && drawnIdx >= drawIdx;
 
               let x = 0, y = 0, rot = 0, scale = 1;
               let spring = { stiffness: 200, damping: 25 };
 
-              if (animPhase === "spread") {
-                x = spreadX;
-                rot = spreadRot;
-                spring = { stiffness: 180, damping: 18 };
-              } else if (animPhase === "gather") {
-                // Return to stack with slight offset
-                x = (idx - DECK_COUNT / 2) * 1.5;
-                rot = (idx - DECK_COUNT / 2) * 0.3;
-                spring = { stiffness: 200, damping: 22 };
-              } else if (animPhase === "shuffle") {
-                // Each card moves to a random position
-                x = shufX;
-                y = shufY;
-                rot = shufRot;
-                spring = { stiffness: 160, damping: 18 };
-              } else if (animPhase === "draw") {
-                if (isDrawn) {
-                  // Drawn card flies up and to the side
-                  const offset = drawIdx * 80 - (drawnIdx) * 40;
-                  x = offset;
-                  y = -70;
-                  scale = 1.15;
-                  spring = { stiffness: 120, damping: 14 };
-                } else {
-                  // Remaining cards stay in stack
-                  x = (idx - DECK_COUNT / 2) * 1.5;
-                  rot = (idx - DECK_COUNT / 2) * 0.3;
-                }
+              if (animPhase === "spread") { x = spreadX; rot = spreadRot; spring = { stiffness: 180, damping: 18 }; }
+              else if (animPhase === "gather") { x = (idx - DECK_COUNT / 2) * 1.5; rot = (idx - DECK_COUNT / 2) * 0.3; spring = { stiffness: 200, damping: 22 }; }
+              else if (animPhase === "shuffle") { x = shufX; y = shufY; rot = shufRot; spring = { stiffness: 160, damping: 18 }; }
+              else if (animPhase === "draw") {
+                if (isDrawn) { const offset = drawIdx * 80 - (drawnIdx) * 40; x = offset; y = -70; scale = 1.15; spring = { stiffness: 120, damping: 14 }; }
+                else { x = (idx - DECK_COUNT / 2) * 1.5; rot = (idx - DECK_COUNT / 2) * 0.3; }
               } else if (animPhase === "glow") {
-                if (isGlowing) {
-                  const offset = drawIdx * 80 - (drawnIdx) * 40;
-                  x = offset;
-                  y = -70;
-                  scale = 1.15;
-                } else {
-                  x = (idx - DECK_COUNT / 2) * 1.5;
-                  rot = (idx - DECK_COUNT / 2) * 0.3;
-                }
+                if (isGlowing) { const offset = drawIdx * 80 - (drawnIdx) * 40; x = offset; y = -70; scale = 1.15; }
+                else { x = (idx - DECK_COUNT / 2) * 1.5; rot = (idx - DECK_COUNT / 2) * 0.3; }
               }
 
               const cardCol = isGlowing && drawn[drawIdx] ? drawn[drawIdx].col : undefined;
 
               return (
-                <motion.div
-                  key={idx}
-                  animate={{ x, y, rotate: rot, scale }}
+                <motion.div key={idx} animate={{ x, y, rotate: rot, scale }}
                   transition={{ type: "spring", ...spring, delay }}
                   style={{
                     position: "absolute", width: 72, height: 106,
                     background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 10px 10px",
                     border: `3px solid ${isGlowing && cardCol ? cardCol : isDrawn ? "#c084fc" : "#3d2a6a"}`,
-                    boxShadow: isGlowing && cardCol
-                      ? `0 0 16px ${cardCol}88, 0 0 32px ${cardCol}44, 3px 3px 0 #000`
-                      : isDrawn
-                        ? "0 0 12px #c084fc66, 3px 3px 0 #000"
-                        : "2px 2px 0 #000",
+                    boxShadow: isGlowing && cardCol ? `0 0 16px ${cardCol}88, 0 0 32px ${cardCol}44, 3px 3px 0 #000`
+                      : isDrawn ? "0 0 12px #c084fc66, 3px 3px 0 #000" : "2px 2px 0 #000",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "20px", color: "#fbbf24",
-                    zIndex: isDrawn ? 100 : idx,
-                  }}
-                >✦</motion.div>
+                    fontSize: "20px", color: "#fbbf24", zIndex: isDrawn ? 100 : idx,
+                  }}>✦</motion.div>
               );
             })}
           </div>
 
-          {/* Progress dots */}
           <div style={{ display: "flex", gap: 8 }}>
             {(["spread", "gather", "shuffle", "draw", "glow"] as const).map((p, i) => (
-              <div key={i} style={{
-                width: 8, height: 8,
-                background: animPhase === p ? "#fbbf24" : "#3d3570",
-                transition: "background 0.3s",
-              }} />
+              <div key={i} style={{ width: 8, height: 8, background: animPhase === p ? "#fbbf24" : "#3d3570", transition: "background 0.3s" }} />
             ))}
           </div>
         </div>
@@ -346,7 +403,6 @@ export function DrawSection() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", animation: "fadeUp 0.4s ease forwards" }}>
           <div style={{ fontSize: "8px", color: "#fbbf24", animation: "blink 2s steps(1) infinite" }}>✦ 命运之牌揭晓 ✦</div>
 
-          {/* Show the question */}
           <div style={{ maxWidth: 340, width: "100%", padding: "10px 14px", background: "#12122a", border: "2px solid #3d3570" }}>
             <div style={{ fontSize: "7px", color: "#555", marginBottom: 4 }}>你的问题</div>
             <div style={{ fontSize: "16px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.5 }}>{q}</div>
@@ -355,7 +411,7 @@ export function DrawSection() {
           {drawn.map((card, idx) => (
             <div key={card.id + "-" + idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%", animation: `fadeUp 0.4s ease ${idx * 0.15}s both` }}>
               {drawCount === 3 && (
-                <div style={{ fontSize: "7px", color: "#555", letterSpacing: "0.1em" }}>✦ {POSITIONS[idx]} ✦</div>
+                <div style={{ fontSize: "7px", color: "#555", letterSpacing: "0.1em" }}>✦ 第 {idx + 1} 张 ✦</div>
               )}
               <MiniCard card={card} reversed={card.reversed} size="lg" />
               <div style={{ textAlign: "center" }}>
@@ -365,38 +421,49 @@ export function DrawSection() {
                   <div style={{ display: "inline-block", marginTop: 6, background: "#1a0a0a", color: "#dc2626", fontSize: "7px", padding: "2px 8px", border: "2px solid #dc2626" }}>逆位</div>
                 )}
               </div>
-              <Panel label={drawCount === 3 ? `解读 · ${POSITIONS[idx]}` : "塔罗解读"} color={card.col}>
+              <Panel label={drawCount === 3 ? `解读 · 第${idx + 1}张` : "塔罗解读"} color={card.col}>
                 <div style={{ padding: 14, fontSize: "17px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line", minHeight: 60 }}>
-                  {readings[idx]}
+                  {readings[idx] || "等待解读..."}
                 </div>
               </Panel>
             </div>
           ))}
 
+          {/* Combined reading for 3-card spread */}
           {drawCount === 3 && (
             <Panel label="✦ 综合解读" color="#fbbf24">
-              <div style={{ padding: 14, fontSize: "16px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.7 }}>
-                三张牌共同揭示了你问题的全貌。
-                <span style={{ color: drawn[0].col }}>{drawn[0].name}</span>代表过去的根基，
-                <span style={{ color: drawn[1].col }}>{drawn[1].name}</span>揭示当下的能量，
-                <span style={{ color: drawn[2].col }}>{drawn[2].name}</span>指向未来的方向。
-                <br /><br />
-                ✦ 信任这个过程，答案已经在你心中。
+              <div style={{ padding: 14, fontSize: "16px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line" }}>
+                {combinedLoading ? (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "14px", color: "#c084fc", animation: "loadingPulse 2s ease-in-out infinite" }}>
+                      ✦ {loadingMsg} ✦
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {combinedReading || "综合解读生成中..."}
+                    {!combinedDone && combinedReading && <span style={{ animation: "blink 0.55s steps(1) infinite" }}>▌</span>}
+                  </>
+                )}
               </div>
             </Panel>
           )}
 
-          <PixelBtn onClick={() => {
-            // TODO: 接入 API，将数据存入数据库
-            const record = {
-              question: q,
-              cards: drawn.map((c, i) => ({ name: c.name, en: c.en, reversed: c.reversed, position: drawCount === 3 ? POSITIONS[i] : undefined })),
-              readings,
-              drawCount,
-              timestamp: new Date().toISOString(),
-            };
-            console.log("牌案归册:", record);
-          }} full>✦ 牌案归册 ✦</PixelBtn>
+          <PixelBtn onClick={async () => {
+            try {
+              await saveReading({
+                question: q, draw_count: drawCount,
+                cards: drawn.map((c, i) => ({
+                  card_id: c.id, card_name: c.name, card_en: c.en, reversed: c.reversed,
+                  reading_text: readings[i] || "",
+                })),
+                combined_reading: combinedReading || undefined,
+              });
+              alert("已保存到牌案！");
+            } catch (e) { console.error(e); alert("保存失败"); }
+          }} full disabled={drawCount === 3 && (combinedLoading || !combinedDone)}>
+            {drawCount === 3 && combinedLoading ? "✦ 综合解读生成中... ✦" : "✦ 牌案归册 ✦"}
+          </PixelBtn>
 
           <PixelBtn onClick={reset} variant="ghost" full>↩ 再问一次</PixelBtn>
         </div>

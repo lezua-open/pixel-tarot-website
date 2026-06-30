@@ -7,6 +7,7 @@ export const GLOBAL_STYLES = `
   @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes spkFloat { 0% { transform: scale(1); opacity: 1; } 100% { transform: translateY(-90px) scale(0); opacity: 0; } }
+  @keyframes loadingPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
   textarea::placeholder { color: #3d3570; font-family: 'VT323', monospace; font-size: 16px; }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: #0a0a1a; }
@@ -19,8 +20,8 @@ export const DECK_COUNT = 10;
 export const TABS = [
   { label: "占卜", Icon: IconSparkles },
   { label: "周记", Icon: IconCalendar },
-  { label: "趋势", Icon: IconChart },
-  { label: "广场", Icon: IconGlobe },
+  // { label: "趋势", Icon: IconChart },
+  // { label: "广场", Icon: IconGlobe },
 ];
 
 export const STAR_POSITIONS = Array.from({ length: 32 }, (_, i) => ({
