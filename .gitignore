@@ -1,0 +1,16 @@
+node_modules
+.DS_Store
+dist*
+dist-ssr
+*.local
+.eslintcache
+.stylelintcache
+*.zip
+coverage
+.turbo
+*.mjs
+apps/rbac/rbac
+apps/rbac/efficiency
+!scripts/dev-tag.mjs
+.sisyphus
+AGENTS.md
