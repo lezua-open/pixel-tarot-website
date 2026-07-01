@@ -209,85 +209,73 @@ export function DrawSection() {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "16px 16px 100px", position: "relative" }}>
+    <div className="flex flex-col items-center gap-4 p-4 pb-[100px] relative">
       {/* Sparkles */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 99 }}>
+      <div className="fixed inset-0 pointer-events-none z-[99]">
         {sparkles.map(s => (
-          <div key={s.id} style={{ position: "absolute", left: `${s.x}%`, top: `${s.y}%`, width: 8, height: 8, background: s.col, boxShadow: `0 0 6px ${s.col}`, animation: "spkFloat 2.2s ease-out forwards" }} />
+          <div key={s.id} className="absolute w-2 h-2 animate-[spkFloat_2.2s_ease-out_forwards]"
+            style={{ left: `${s.x}%`, top: `${s.y}%`, background: s.col, boxShadow: `0 0 6px ${s.col}` }}
+          />
         ))}
       </div>
 
       {/* ── Full-screen reveal modal (3-card) ── */}
       {revealIdx >= 0 && revealIdx < drawn.length && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 200,
-          background: "rgba(5,5,15,0.96)",
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: 24, gap: 16,
-          overflowY: "auto",
-          animation: "fadeUp 0.4s ease forwards",
-        }}>
+        <div className="fixed inset-0 z-[200] bg-[rgba(5,5,15,0.96)] flex flex-col items-center p-6 gap-4 overflow-y-auto animate-[fadeUp_0.4s_ease_forwards]">
           {/* Card number label */}
           {drawCount === 3 && (
-            <div style={{ fontSize: "8px", color: "#555", letterSpacing: "0.15em" }}>
+            <div className="text-[8px] text-[#555] tracking-[0.15em]">
               ✦ 第 {revealIdx + 1} 张 ✦
             </div>
           )}
 
           <MiniCard card={drawn[revealIdx]} reversed={drawn[revealIdx].reversed} size="lg" />
 
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "16px", color: drawn[revealIdx].col, fontFamily: "'VT323', monospace" }}>{drawn[revealIdx].name}</div>
-            <div style={{ fontSize: "8px", color: "#7766bb", marginTop: 4 }}>{drawn[revealIdx].en}</div>
+          <div className="text-center">
+            <div className="text-[16px] font-['VT323',_monospace]"
+              style={{ color: drawn[revealIdx].col }}
+            >{drawn[revealIdx].name}</div>
+            <div className="text-[8px] text-[#7766bb] mt-1">{drawn[revealIdx].en}</div>
             {drawn[revealIdx].reversed && (
-              <div style={{ display: "inline-block", marginTop: 6, background: "#1a0a0a", color: "#dc2626", fontSize: "7px", padding: "2px 8px", border: "2px solid #dc2626" }}>逆位</div>
+              <div className="inline-block mt-1.5 bg-[#1a0a0a] text-[#dc2626] text-[7px] py-0.5 px-2 border-2 border-[#dc2626]">逆位</div>
             )}
           </div>
 
           {/* Reading area with scroll */}
-          <div style={{
-            maxWidth: 360, width: "100%", padding: 16,
-            border: `2px solid ${drawn[revealIdx].col}33`,
-            background: "#0a0a1a",
-            fontSize: "16px", fontFamily: "'VT323', monospace",
-            color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line",
-            minHeight: 120, maxHeight: "40vh", overflowY: "auto",
-          }}>
+          <div className="max-w-[360px] w-full p-4 bg-[#0a0a1a] text-[16px] font-['VT323',_monospace] text-[#e8deff] leading-[1.7] whitespace-pre-line min-h-[120px] max-h-[40vh] overflow-y-auto"
+            style={{ border: `2px solid ${drawn[revealIdx].col}33` }}
+          >
             {isLoading ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ fontSize: "14px", color: "#c084fc", animation: "loadingPulse 2s ease-in-out infinite" }}>
+              <div className="text-center py-5">
+                <div className="text-[14px] text-[#c084fc] animate-[loadingPulse_2s_ease-in-out_infinite]">
                   ✦ {loadingMsg} ✦
                 </div>
               </div>
             ) : (
               <>
                 {streamingText || readings[revealIdx] || ""}
-                {!revealDone && <span style={{ animation: "blink 0.55s steps(1) infinite" }}>▌</span>}
+                {!revealDone && <span className="animate-[blink_0.55s_steps(1)_infinite]">▌</span>}
               </>
             )}
           </div>
 
           {/* Progress dots */}
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+          <div className="flex gap-2.5 mt-2">
             {drawn.map((_, i) => (
-              <div key={i} style={{
-                width: 10, height: 10,
-                background: i < revealIdx ? drawn[i].col : i === revealIdx ? "#fbbf24" : "#2a2244",
-                border: `2px solid ${i <= revealIdx ? drawn[i].col : "#3d3570"}`,
-                transition: "all 0.3s",
-              }} />
+              <div key={i} className="w-2.5 h-2.5 transition-all duration-300"
+                style={{
+                  background: i < revealIdx ? drawn[i].col : i === revealIdx ? "#fbbf24" : "#2a2244",
+                  border: `2px solid ${i <= revealIdx ? drawn[i].col : "#3d3570"}`,
+                }}
+              />
             ))}
           </div>
 
           {/* Next button */}
           {revealDone && (
-            <button onClick={nextReveal} style={{
-              background: "#7c3aed", color: "#fbbf24",
-              border: "3px solid #fbbf24", boxShadow: "3px 3px 0 #000",
-              padding: "10px 28px", fontSize: "9px", fontFamily: "inherit",
-              cursor: "pointer", letterSpacing: "0.05em", marginTop: 8,
-              animation: "fadeUp 0.3s ease forwards",
-            }}>
+            <button onClick={nextReveal}
+              className="bg-[#7c3aed] text-[#fbbf24] border-[3px] border-[#fbbf24] shadow-[3px_3px_0_#000] py-2.5 px-7 text-[9px] font-inherit cursor-pointer tracking-[0.05em] mt-2 animate-[fadeUp_0.3s_ease_forwards]"
+            >
               {revealIdx < drawn.length - 1 ? "▶ 下一张" : "✦ 查看结果"}
             </button>
           )}
@@ -295,29 +283,30 @@ export function DrawSection() {
       )}
 
       {/* Header */}
-      <div style={{ textAlign: "center", paddingTop: 16 }}>
-        <div style={{ fontSize: "8px", color: "#c084fc", letterSpacing: "0.2em", animation: "blink 3s steps(1) infinite" }}>✦ PIXEL TAROT ✦</div>
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}><IconEye style={{ width: 56, height: 56, color: "#c084fc" }} /></div>
-        <div style={{ fontSize: "12px", color: "#e8deff", marginTop: 8 }}>塔罗</div>
-        <div style={{ fontSize: "7px", color: "#555", marginTop: 6 }}>提出问题，寻找答案</div>
+      <div className="text-center pt-4">
+        <div className="text-[8px] text-[#c084fc] tracking-[0.2em] animate-[blink_3s_steps(1)_infinite]">✦ PIXEL TAROT ✦</div>
+        <div className="mt-2.5 flex justify-center"><IconEye className="w-14 h-14 text-[#c084fc]" /></div>
+        <div className="text-[12px] text-[#e8deff] mt-2">塔罗</div>
+        <div className="text-[7px] text-[#555] mt-1.5">提出问题，寻找答案</div>
       </div>
 
       {phase === "idle" && (
         <>
           <Panel label="输入你的问题">
             <textarea value={q} onChange={e => setQ(e.target.value)} placeholder="想问什么……" rows={3}
-              style={{ width: "100%", background: "#080812", color: "#e8deff", border: "none", outline: "none", padding: "12px", fontSize: "17px", fontFamily: "'VT323', monospace", resize: "none", lineHeight: 1.5 }} />
+              className="w-full bg-[#080812] text-[#e8deff] border-none outline-none p-3 text-[17px] font-['VT323',_monospace] resize-none leading-[1.5]"
+            />
           </Panel>
 
-          <div style={{ display: "flex", gap: 8, width: "100%" }}>
+          <div className="flex gap-2 w-full">
             {([1, 3] as const).map(n => (
-              <button key={n} onClick={() => setDrawCount(n)} style={{
-                flex: 1, padding: "10px 0", background: drawCount === n ? "#7c3aed" : "transparent",
-                border: `3px solid ${drawCount === n ? "#fbbf24" : "#3d3570"}`,
-                color: drawCount === n ? "#fbbf24" : "#7766bb",
-                fontSize: "8px", fontFamily: "inherit", cursor: "pointer",
-                boxShadow: drawCount === n ? "3px 3px 0 #000" : "none", letterSpacing: "0.05em",
-              }}>{n === 1 ? "✦ 单牌占卜" : "✦ 三牌阵"}</button>
+              <button key={n} onClick={() => setDrawCount(n)}
+                className={`flex-1 py-2.5 font-inherit cursor-pointer tracking-[0.05em] text-[8px] border-[3px] ${
+                  drawCount === n
+                    ? "bg-[#7c3aed] border-[#fbbf24] text-[#fbbf24] shadow-[3px_3px_0_#000]"
+                    : "bg-transparent border-[#3d3570] text-[#7766bb] shadow-none"
+                }`}
+              >{n === 1 ? "✦ 单牌占卜" : "✦ 三牌阵"}</button>
             ))}
           </div>
 
@@ -325,30 +314,32 @@ export function DrawSection() {
             {q.trim() ? `✦ 抽取${drawCount === 1 ? "命运之牌" : "三张牌"} ✦` : "请先输入你的问题"}
           </PixelBtn>
 
-          <div style={{ position: "relative", height: 150, width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div className="relative h-[150px] w-full flex justify-center items-center">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} style={{
-                position: "absolute", width: 88, height: 130,
-                background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 12px 12px",
-                border: `3px solid ${i === 4 ? "#7c3aed" : "#3d2a6a"}`,
-                boxShadow: i === 4 ? "3px 3px 0 #000, 0 0 24px #7c3aed66" : "none",
-                transform: `rotate(${(i - 2) * 3}deg)`, zIndex: i,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: i === 4 ? "28px" : "0", color: "#fbbf24",
-              }}>{i === 4 ? "✦" : ""}</div>
+              <div key={i} className="absolute w-[88px] h-[130px] flex items-center justify-center"
+                style={{
+                  background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 12px 12px",
+                  border: `3px solid ${i === 4 ? "#7c3aed" : "#3d2a6a"}`,
+                  boxShadow: i === 4 ? "3px 3px 0 #000, 0 0 24px #7c3aed66" : "none",
+                  transform: `rotate(${(i - 2) * 3}deg)`,
+                  zIndex: i,
+                  fontSize: i === 4 ? "28px" : "0",
+                  color: "#fbbf24",
+                }}
+              >{i === 4 ? "✦" : ""}</div>
             ))}
           </div>
-          <div style={{ fontSize: "7px", color: "#3d3570", marginTop: -8 }}>22张大阿卡纳 · 随机抽取</div>
+          <div className="text-[7px] text-[#3d3570] -mt-2">22张大阿卡纳 · 随机抽取</div>
         </>
       )}
 
       {phase === "shuffling" && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "40px 0", width: "100%" }}>
-          <div style={{ fontSize: "8px", color: "#c084fc", animation: "blink 1s ease infinite" }}>
+        <div className="flex flex-col items-center gap-4 py-10 w-full">
+          <div className="text-[8px] text-[#c084fc] animate-[blink_1s_ease_infinite]">
             ✦ {animPhase === "spread" ? "展开牌组" : animPhase === "gather" ? "收拢牌组" : animPhase === "shuffle" ? "洗牌中" : animPhase === "draw" ? "抽牌中" : "命运已定"} ✦
           </div>
 
-          <div style={{ position: "relative", height: 200, width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div className="relative h-[200px] w-full flex justify-center items-center">
             {deckCards.map(({ idx, spreadX, spreadRot }) => {
               const shufX = ((idx * 41 + 7) % 80) - 40;
               const shufY = ((idx * 29 + 11) % 30) - 15;
@@ -378,51 +369,55 @@ export function DrawSection() {
               return (
                 <motion.div key={idx} animate={{ x, y, rotate: rot, scale }}
                   transition={{ type: "spring", ...spring, delay }}
+                  className="absolute w-[72px] h-[106px] flex items-center justify-center text-[20px] text-[#fbbf24]"
                   style={{
-                    position: "absolute", width: 72, height: 106,
                     background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 10px 10px",
                     border: `3px solid ${isGlowing && cardCol ? cardCol : isDrawn ? "#c084fc" : "#3d2a6a"}`,
                     boxShadow: isGlowing && cardCol ? `0 0 16px ${cardCol}88, 0 0 32px ${cardCol}44, 3px 3px 0 #000`
                       : isDrawn ? "0 0 12px #c084fc66, 3px 3px 0 #000" : "2px 2px 0 #000",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "20px", color: "#fbbf24", zIndex: isDrawn ? 100 : idx,
-                  }}>✦</motion.div>
+                    zIndex: isDrawn ? 100 : idx,
+                  }}
+                >✦</motion.div>
               );
             })}
           </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             {(["spread", "gather", "shuffle", "draw", "glow"] as const).map((p, i) => (
-              <div key={i} style={{ width: 8, height: 8, background: animPhase === p ? "#fbbf24" : "#3d3570", transition: "background 0.3s" }} />
+              <div key={i} className="w-2 h-2 transition-colors duration-300"
+                style={{ background: animPhase === p ? "#fbbf24" : "#3d3570" }}
+              />
             ))}
           </div>
         </div>
       )}
 
       {phase === "revealed" && drawn.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", animation: "fadeUp 0.4s ease forwards" }}>
-          <div style={{ fontSize: "8px", color: "#fbbf24", animation: "blink 2s steps(1) infinite" }}>✦ 命运之牌揭晓 ✦</div>
+        <div className="flex flex-col items-center gap-4 w-full animate-[fadeUp_0.4s_ease_forwards]">
+          <div className="text-[8px] text-[#fbbf24] animate-[blink_2s_steps(1)_infinite]">✦ 命运之牌揭晓 ✦</div>
 
-          <div style={{ maxWidth: 340, width: "100%", padding: "10px 14px", background: "#12122a", border: "2px solid #3d3570" }}>
-            <div style={{ fontSize: "7px", color: "#555", marginBottom: 4 }}>你的问题</div>
-            <div style={{ fontSize: "16px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.5 }}>{q}</div>
+          <div className="max-w-[340px] w-full py-2.5 px-3.5 bg-[#12122a] border-2 border-[#3d3570]">
+            <div className="text-[7px] text-[#555] mb-1">你的问题</div>
+            <div className="text-[16px] font-['VT323',_monospace] text-[#e8deff] leading-[1.5]">{q}</div>
           </div>
 
           {drawn.map((card, idx) => (
-            <div key={card.id + "-" + idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%", animation: `fadeUp 0.4s ease ${idx * 0.15}s both` }}>
+            <div key={card.id + "-" + idx} className="flex flex-col items-center gap-3 w-full"
+              style={{ animation: `fadeUp 0.4s ease ${idx * 0.15}s both` }}
+            >
               {drawCount === 3 && (
-                <div style={{ fontSize: "7px", color: "#555", letterSpacing: "0.1em" }}>✦ 第 {idx + 1} 张 ✦</div>
+                <div className="text-[7px] text-[#555] tracking-[0.1em]">✦ 第 {idx + 1} 张 ✦</div>
               )}
               <MiniCard card={card} reversed={card.reversed} size="lg" />
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "14px", color: card.col }}>{card.name}</div>
-                <div style={{ fontSize: "7px", color: "#7766bb", marginTop: 4 }}>{card.en}</div>
+              <div className="text-center">
+                <div className="text-[14px]" style={{ color: card.col }}>{card.name}</div>
+                <div className="text-[7px] text-[#7766bb] mt-1">{card.en}</div>
                 {card.reversed && (
-                  <div style={{ display: "inline-block", marginTop: 6, background: "#1a0a0a", color: "#dc2626", fontSize: "7px", padding: "2px 8px", border: "2px solid #dc2626" }}>逆位</div>
+                  <div className="inline-block mt-1.5 bg-[#1a0a0a] text-[#dc2626] text-[7px] py-0.5 px-2 border-2 border-[#dc2626]">逆位</div>
                 )}
               </div>
               <Panel label={drawCount === 3 ? `解读 · 第${idx + 1}张` : "塔罗解读"} color={card.col}>
-                <div style={{ padding: 14, fontSize: "17px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line", minHeight: 60 }}>
+                <div className="p-3.5 text-[17px] font-['VT323',_monospace] text-[#e8deff] leading-[1.7] whitespace-pre-line min-h-[60px]">
                   {readings[idx] || "等待解读..."}
                 </div>
               </Panel>
@@ -432,17 +427,17 @@ export function DrawSection() {
           {/* Combined reading for 3-card spread */}
           {drawCount === 3 && (
             <Panel label="✦ 综合解读" color="#fbbf24">
-              <div style={{ padding: 14, fontSize: "16px", fontFamily: "'VT323', monospace", color: "#e8deff", lineHeight: 1.7, whiteSpace: "pre-line" }}>
+              <div className="p-3.5 text-[16px] font-['VT323',_monospace] text-[#e8deff] leading-[1.7] whitespace-pre-line">
                 {combinedLoading ? (
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "14px", color: "#c084fc", animation: "loadingPulse 2s ease-in-out infinite" }}>
+                  <div className="text-center">
+                    <div className="text-[14px] text-[#c084fc] animate-[loadingPulse_2s_ease-in-out_infinite]">
                       ✦ {loadingMsg} ✦
                     </div>
                   </div>
                 ) : (
                   <>
                     {combinedReading || "综合解读生成中..."}
-                    {!combinedDone && combinedReading && <span style={{ animation: "blink 0.55s steps(1) infinite" }}>▌</span>}
+                    {!combinedDone && combinedReading && <span className="animate-[blink_0.55s_steps(1)_infinite]">▌</span>}
                   </>
                 )}
               </div>

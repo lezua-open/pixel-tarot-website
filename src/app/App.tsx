@@ -10,26 +10,27 @@ export default function App() {
   const [tab, setTab] = useState(0);
 
   return (
-    <div style={{ fontFamily: "'Press Start 2P', monospace", background: "#0a0a1a", minHeight: "100vh", maxWidth: 430, margin: "0 auto", position: "relative", overflowX: "hidden" }}>
+    <div className="font-['Press_Start_2P',monospace] bg-[#0a0a1a] min-h-screen max-w-[430px] mx-auto relative overflow-x-hidden">
       <style>{GLOBAL_STYLES}</style>
 
       {/* Pixel starfield */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden", maxWidth: 430, margin: "0 auto" }}>
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden max-w-[430px] mx-auto">
         {STAR_POSITIONS.map((s, i) => (
-          <div key={i} style={{
-            position: "absolute",
+          <div key={i} className="absolute" style={{
             width: s.w, height: s.w,
             background: s.col,
             left: `${s.x}%`, top: `${s.y}%`,
             animation: `blink ${s.dur}s steps(1) ${s.delay}s infinite`,
           }} />
         ))}
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.06) 4px, rgba(0,0,0,0.06) 5px)", pointerEvents: "none" }} />
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.06) 4px, rgba(0,0,0,0.06) 5px)",
+        }} />
       </div>
 
       {/* Page content */}
       <LightboxProvider>
-        <div style={{ position: "relative", zIndex: 1 }}>
+        <div className="relative z-[1]">
           {tab === 0 && <DrawSection />}
           {tab === 1 && <WeeklySection />}
           {tab === 2 && <TrendsSection />}
@@ -38,27 +39,17 @@ export default function App() {
       </LightboxProvider>
 
       {/* Bottom nav */}
-      <nav style={{
-        position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-        width: "100%", maxWidth: 430,
-        background: "#080812",
-        borderTop: "3px solid #3d3570",
-        boxShadow: "0 -4px 0 #000",
-        display: "flex", zIndex: 100,
-      }}>
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-[#080812] border-t-[3px] border-t-[#3d3570] shadow-[0_-4px_0_#000] flex z-[100]">
         {TABS.map((t, i) => (
-          <button key={t.label} onClick={() => setTab(i)} style={{
-            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-            padding: "10px 0 16px",
-            background: tab === i ? "#12122a" : "transparent",
-            border: "none",
-            borderTop: `3px solid ${tab === i ? "#9d4edd" : "transparent"}`,
-            color: tab === i ? "#fbbf24" : "#3d3570",
-            cursor: "pointer", fontFamily: "inherit",
-            transition: "color 0.1s, border-color 0.1s",
-          }}>
-            <t.Icon style={{ width: 20, height: 20 }} />
-            <span style={{ fontSize: "10px" }}>{t.label}</span>
+          <button key={t.label} onClick={() => setTab(i)}
+            className={`flex-1 flex flex-col items-center gap-1 pt-2.5 pb-4 border-none cursor-pointer font-inherit transition-[color,border-color] duration-100 ${
+              tab === i
+                ? "bg-[#12122a] border-t-[3px] border-t-[#9d4edd] text-[#fbbf24]"
+                : "bg-transparent border-t-[3px] border-t-transparent text-[#3d3570]"
+            }`}
+          >
+            <t.Icon className="w-5 h-5" />
+            <span className="text-[10px]">{t.label}</span>
           </button>
         ))}
       </nav>

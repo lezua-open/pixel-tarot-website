@@ -1,12 +1,10 @@
 export function CardBack() {
   return (
-    <div style={{
-      width: 88, height: 130,
-      background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 12px 12px",
-      border: "3px solid #7c3aed",
-      boxShadow: "3px 3px 0 #000, 0 0 20px #7c3aed66",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: "28px", color: "#fbbf24",
-    }}>✦</div>
+    <div
+      className="w-[88px] h-[130px] border-[3px] border-solid border-[#7c3aed] flex items-center justify-center text-[28px] text-[#fbbf24] shadow-[3px_3px_0_#000,0_0_20px_#7c3aed66]"
+      style={{
+        background: "repeating-conic-gradient(#12122a 0% 25%, #1c1040 0% 50%) 0 0 / 12px 12px",
+      }}
+    >✦</div>
   );
 }

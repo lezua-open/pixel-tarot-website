@@ -12,20 +12,19 @@ export function PixelBtn({ children, onClick, variant = "primary", full = false,
       onPointerDown={() => !disabled && setPressed(true)}
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
-      style={{
-        background: variant === "primary" ? (disabled ? "#2a2244" : "#7c3aed") : "transparent",
-        color: variant === "primary" ? (disabled ? "#554477" : "#fbbf24") : "#7766bb",
-        border: `3px solid ${variant === "primary" ? (disabled ? "#3d2a6a" : "#fbbf24") : "#3d3570"}`,
-        boxShadow: active ? "none" : "4px 4px 0 #000",
-        transform: active ? "translate(4px,4px)" : undefined,
-        padding: "11px 20px",
-        fontSize: "9px",
-        fontFamily: "inherit",
-        cursor: disabled ? "not-allowed" : "pointer",
-        width: full ? "100%" : undefined,
-        transition: "box-shadow 0.05s, transform 0.05s",
-        letterSpacing: "0.05em",
-      }}
+      className={[
+        "px-5 py-[11px] text-[9px] font-inherit tracking-[0.05em] border-[3px] border-solid transition-[box-shadow,transform] duration-[0.05s]",
+        variant === "primary"
+          ? disabled
+            ? "bg-[#2a2244] text-[#554477] border-[#3d2a6a]"
+            : "bg-[#7c3aed] text-[#fbbf24] border-[#fbbf24]"
+          : "bg-transparent text-[#7766bb] border-[#3d3570]",
+        active
+          ? "shadow-none translate-x-[4px] translate-y-[4px]"
+          : "shadow-[4px_4px_0_#000]",
+        disabled ? "cursor-not-allowed" : "cursor-pointer",
+        full ? "w-full" : "",
+      ].join(" ")}
     >{children}</button>
   );
 }

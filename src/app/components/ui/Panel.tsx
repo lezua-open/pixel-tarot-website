@@ -2,10 +2,13 @@ import type { ReactNode } from "react";
 
 export function Panel({ children, label, color = "#3d3570" }: { children: ReactNode; label?: string; color?: string }) {
   return (
-    <div style={{ border: `3px solid ${color}`, boxShadow: "4px 4px 0 #000", background: "#0a0a1a", width: "100%" }}>
+    <div
+      className="w-full border-[3px] border-solid border-[var(--panel-color)] bg-[#0a0a1a] shadow-[4px_4px_0_#000]"
+      style={{ "--panel-color": color } as React.CSSProperties}
+    >
       {label && (
-        <div style={{ padding: "6px 12px", background: "#12122a", borderBottom: `2px solid ${color}` }}>
-          <span style={{ fontSize: "8px", color: "#c084fc" }}>▶ {label}</span>
+        <div className="border-b-[2px] border-b-[var(--panel-color)] border-b-solid bg-[#12122a] px-3 py-1.5">
+          <span className="text-[8px] text-[#c084fc]">▶ {label}</span>
         </div>
       )}
       {children}
