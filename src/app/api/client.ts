@@ -1,3 +1,5 @@
+import type { CardReadingPayload, SaveReadingPayload, ReadingRecord, ReadingListResponse } from "../types/client";
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -13,37 +15,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Readings API ──────────────────────────────────────────────────────────────
 
-export interface CardReadingPayload {
-  card_id: number;
-  card_name: string;
-  card_en: string;
-  reversed: boolean;
-  position?: string;
-  reading_text: string;
-}
-
-export interface SaveReadingPayload {
-  question: string;
-  draw_count: number;
-  cards: CardReadingPayload[];
-  combined_reading?: string;
-}
-
-export interface ReadingRecord {
-  id: string;
-  question: string;
-  draw_count: number;
-  combined_reading: string | null;
-  cards: CardReadingPayload[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ReadingListResponse {
-  success: boolean;
-  data: ReadingRecord[];
-  total: number;
-}
+export type { CardReadingPayload, SaveReadingPayload, ReadingRecord, ReadingListResponse };
 
 export async function saveReading(payload: SaveReadingPayload): Promise<ReadingRecord> {
   return request<ReadingRecord>("/api/readings", {
@@ -62,6 +34,50 @@ export async function getReading(id: string): Promise<ReadingRecord> {
 
 export async function deleteReading(id: string): Promise<void> {
   await request(`/api/readings/${id}`, { method: "DELETE" });
+}
+
+// ── 问题验证 ─────────────────────────────────────────────────────────────────
+
+export async function validateQuestion(question: string): Promise<{ valid: boolean; message?: string }> {
+  const res = await fetch(`${API_BASE}/api/agent/validate-question`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return { valid: false, message: data.detail || "请想清楚后再问" };
+  }
+
+  return { valid: true };
+}
+
+// ── Agent API (批量) ────────────────────────────────────────────────────────
+
+export async function batchReading(
+  question: string,
+  cards: CardReadingPayload[],
+): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/agent/reading/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      cards,
+      total_cards: cards.length,
+      current_index: 0,
+      is_combined: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `批量解读失败: ${res.status}`);
+  }
+
+  const result = await res.json();
+  return result.readings;
 }
 
 // ── Agent API (SSE) ──────────────────────────────────────────────────────────
@@ -83,9 +99,18 @@ export async function streamAgentReading(
       body: JSON.stringify({ question, cards, total_cards: totalCards, current_index: currentIndex, is_combined: isCombined }),
     });
 
-    console.log("Agent API response status:", res.status);
-    if (!res.ok || !res.body) {
-      throw new Error(`Stream error: ${res.status}`);
+    if (!res.ok) {
+      // 尝试从响应体提取错误信息
+      try {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || `请求失败: ${res.status}`);
+      } catch (e) {
+        if (e instanceof Error && e.message !== `请求失败: ${res.status}`) throw e;
+        throw new Error(`请求失败: ${res.status}`);
+      }
+    }
+    if (!res.body) {
+      throw new Error("响应体为空");
     }
 
     const reader = res.body.getReader();

@@ -1,4 +1,5 @@
-import type { ReadingRecord, WeeklyEntry, PlazaEntry } from "./reading";
+import type { ReadingRecordUI, WeeklyEntry, PlazaEntry } from "./reading";
+import type { ReadingRecord } from "./client";
 
 /** API 通用响应结构 */
 export interface ApiResponse<T> {

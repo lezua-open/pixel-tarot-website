@@ -11,10 +11,18 @@ export type {
 // Reading types
 export type {
   CardReading,
-  ReadingRecord,
+  ReadingRecordUI,
   WeeklyEntry,
   PlazaEntry,
 } from "./reading";
+
+// API client types (snake_case, 与后端对齐)
+export type {
+  CardReadingPayload,
+  SaveReadingPayload,
+  ReadingRecord,
+  ReadingListResponse,
+} from "./client";
 
 // API types
 export type {

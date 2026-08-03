@@ -1,6 +1,6 @@
-import type { TCard, DrawnCard, SpreadPosition } from "./card";
+import type { TCard, SpreadPosition } from "./card";
 
-/** 单张牌的解读 */
+/** 单张牌的解读 (UI 层) */
 export interface CardReading {
   cardId: number;
   cardName: string;
@@ -9,8 +9,8 @@ export interface CardReading {
   text: string;           // 解读文本
 }
 
-/** 完整的占卜记录（数据库模型） */
-export interface ReadingRecord {
+/** 完整的占卜记录（UI 层，camelCase） */
+export interface ReadingRecordUI {
   id: string;             // UUID
   question: string;       // 用户问题
   drawCount: 1 | 3;      // 抽牌数量
